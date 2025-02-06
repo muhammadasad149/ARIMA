@@ -32,47 +32,51 @@ def monte_carlo_simulation(last_price, days, mu, sigma, target_price, target_ran
 
 # Function to fetch stock data and predict with updated Monte Carlo
 def get_stock_forecast(ticker, days, target_price, target_range=0.05 , p=30 , d= 0 , q=10):
-    try:
-        end_date = date.today().strftime("%Y-%m-%d")
-        start_date = "2023-01-01"
+    # try:
+    end_date = date.today().strftime("%Y-%m-%d")
+    start_date = "2023-01-01"
 
-        # Fetch stock data
-        data = yf.download(ticker, start=start_date, end=end_date)
+    # Fetch stock data
+    data = yf.download(ticker, start=start_date, end=end_date)
 
-        if data.empty:
-            st.error("Invalid ticker or no data found!")
-            return None
-
-        data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
-        data.dropna(subset=["Close"], inplace=True)
-
-        # Fit ARIMA model
-        arima_model = ARIMA(data["Close"], order=(p,d,q))
-        arima_result = arima_model.fit()
-        
-        arima_forecast = arima_result.get_forecast(steps=days)
-        arima_pred = arima_forecast.summary_frame()
-
-        # Check when the target price will be hit
-        arima_target_hit_day = None
-        for i, price in enumerate(arima_pred["mean"]):
-            if price >= target_price:
-                arima_target_hit_day = (date.today() + timedelta(days=i + 1)).strftime("%Y-%m-%d")
-                break
-
-        # Compute drift and volatility for Monte Carlo
-        log_returns = np.log(data["Close"] / data["Close"].shift(1)).dropna()
-        mu = log_returns.mean()
-        sigma = log_returns.std()
-
-        # Monte Carlo Simulation
-        paths, avg_hit_day, hit_count = monte_carlo_simulation(data["Close"].iloc[-1], days, mu, sigma, target_price, target_range)
-
-        return data, arima_pred, avg_hit_day, paths, hit_count , arima_target_hit_day
-
-    except Exception as e:
-        st.error(f"Error: {e}")
+    if data.empty:
+        st.error("Invalid ticker or no data found!")
         return None
+    # else:
+    #     print("data", data)
+    # print("data close :", data["Close"])
+    # print("data close type :", data["Close"].dtype)
+
+    data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
+    data.dropna(subset=["Close"], inplace=True)
+
+    # Fit ARIMA model
+    arima_model = ARIMA(data["Close"], order=(p,d,q))
+    arima_result = arima_model.fit()
+    
+    arima_forecast = arima_result.get_forecast(steps=days)
+    arima_pred = arima_forecast.summary_frame()
+
+    # Check when the target price will be hit
+    arima_target_hit_day = None
+    for i, price in enumerate(arima_pred["mean"]):
+        if price >= target_price:
+            arima_target_hit_day = (date.today() + timedelta(days=i + 1)).strftime("%Y-%m-%d")
+            break
+
+    # Compute drift and volatility for Monte Carlo
+    log_returns = np.log(data["Close"] / data["Close"].shift(1)).dropna()
+    mu = log_returns.mean()
+    sigma = log_returns.std()
+
+    # Monte Carlo Simulation
+    paths, avg_hit_day, hit_count = monte_carlo_simulation(data["Close"].iloc[-1], days, mu, sigma, target_price, target_range)
+
+    return data, arima_pred, avg_hit_day, paths, hit_count , arima_target_hit_day
+
+    # except Exception as e:
+    #     st.error(f"Error: {e}")
+    #     return None
 
 # Streamlit UI (updated)
 st.title("📈 Stock Price Prediction (ARIMA + Monte Carlo)")
