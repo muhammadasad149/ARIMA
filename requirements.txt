@@ -1,5 +1,1 @@
-streamlit
-pandas
-yfinance
-statsmodels
-matplotlib
+statsmodels==0.14.0
