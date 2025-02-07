@@ -5,11 +5,17 @@ from statsmodels.tsa.arima.model import ARIMA
 from datetime import date, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
+
+# Configure logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 
 # Modified Monte Carlo Simulation Function with Range Handling
 def monte_carlo_simulation(last_price, days, mu, sigma, target_price, target_range=0.05, simulations=10000):
+    
     np.random.seed(42)
     paths = np.zeros((simulations, days))
     hit_days = []
@@ -32,8 +38,9 @@ def monte_carlo_simulation(last_price, days, mu, sigma, target_price, target_ran
     return paths, avg_hit_day, hit_count
 
 # Function to fetch stock data and predict with updated Monte Carlo
-def get_stock_forecast(ticker, days, target_price, target_range=0.05 , p=30 , d= 0 , q=10):
-    # try:
+def get_stock_forecast(ticker, days, target_price, target_range=0.05, p=30, d=0, q=10):
+    logger.info(f"Fetching stock data for ticker: {ticker} from 2023-01-01 to {date.today()}")
+
     end_date = date.today().strftime("%Y-%m-%d")
     start_date = "2023-01-01"
 
@@ -41,43 +48,96 @@ def get_stock_forecast(ticker, days, target_price, target_range=0.05 , p=30 , d=
     data = yf.download(ticker, start=start_date, end=end_date)
 
     if data.empty:
-        st.error("Invalid ticker or no data found!")
+        logger.error("Invalid ticker or no data found!")
         return None
-    # else:
-    #     print("data", data)
-    # print("data close :", data["Close"])
-    # print("data close type :", data["Close"].dtype)
+
+    logger.info(f"Successfully fetched data. Total records: {len(data)}")
 
     data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
     data.dropna(subset=["Close"], inplace=True)
 
+    logger.info(f"Data cleaned. Remaining records after NaN removal: {len(data)}")
+
     # Fit ARIMA model
-    arima_model = ARIMA(data["Close"], order=(p,d,q))
-    arima_result = arima_model.fit()
-    
-    arima_forecast = arima_result.get_forecast(steps=days)
-    arima_pred = arima_forecast.summary_frame()
+    try:
+        logger.info(f"Fitting ARIMA model with order ({p}, {d}, {q})")
+        arima_model = ARIMA(data["Close"], order=(p, d, q))
+        arima_result = arima_model.fit()
+        arima_forecast = arima_result.get_forecast(steps=days)
+        arima_pred = arima_forecast.summary_frame()
+        logger.info("ARIMA model fitted successfully.")
+    except Exception as e:
+        logger.error(f"ARIMA model fitting failed: {e}")
+        return None
 
     # Check when the target price will be hit
     arima_target_hit_day = None
     for i, price in enumerate(arima_pred["mean"]):
         if price >= target_price:
             arima_target_hit_day = (date.today() + timedelta(days=i + 1)).strftime("%Y-%m-%d")
+            logger.info(f"Target price {target_price} expected to be hit on: {arima_target_hit_day}")
             break
 
     # Compute drift and volatility for Monte Carlo
     log_returns = np.log(data["Close"] / data["Close"].shift(1)).dropna()
     mu = log_returns.mean()
     sigma = log_returns.std()
+    logger.info(f"Calculated log returns: mean={mu:.6f}, std_dev={sigma:.6f}")
 
     # Monte Carlo Simulation
+    logger.info("Running Monte Carlo simulation...")
     paths, avg_hit_day, hit_count = monte_carlo_simulation(data["Close"].iloc[-1], days, mu, sigma, target_price, target_range)
+    logger.info(f"Monte Carlo simulation completed. Avg hit day: {avg_hit_day}, Hit count: {hit_count}")
 
-    return data, arima_pred, avg_hit_day, paths, hit_count , arima_target_hit_day
+    return data, arima_pred, avg_hit_day, paths, hit_count, arima_target_hit_day
 
-    # except Exception as e:
-    #     st.error(f"Error: {e}")
-    #     return None
+# # Function to fetch stock data and predict with updated Monte Carlo
+# def get_stock_forecast(ticker, days, target_price, target_range=0.05 , p=30 , d= 0 , q=10):
+#     # try:
+#     end_date = date.today().strftime("%Y-%m-%d")
+#     start_date = "2023-01-01"
+
+#     # Fetch stock data
+#     data = yf.download(ticker, start=start_date, end=end_date)
+
+#     if data.empty:
+#         st.error("Invalid ticker or no data found!")
+#         return None
+#     # else:
+#     #     print("data", data)
+#     # print("data close :", data["Close"])
+#     # print("data close type :", data["Close"].dtype)
+
+#     data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
+#     data.dropna(subset=["Close"], inplace=True)
+
+#     # Fit ARIMA model
+#     arima_model = ARIMA(data["Close"], order=(p,d,q))
+#     arima_result = arima_model.fit()
+    
+#     arima_forecast = arima_result.get_forecast(steps=days)
+#     arima_pred = arima_forecast.summary_frame()
+
+#     # Check when the target price will be hit
+#     arima_target_hit_day = None
+#     for i, price in enumerate(arima_pred["mean"]):
+#         if price >= target_price:
+#             arima_target_hit_day = (date.today() + timedelta(days=i + 1)).strftime("%Y-%m-%d")
+#             break
+
+#     # Compute drift and volatility for Monte Carlo
+#     log_returns = np.log(data["Close"] / data["Close"].shift(1)).dropna()
+#     mu = log_returns.mean()
+#     sigma = log_returns.std()
+
+#     # Monte Carlo Simulation
+#     paths, avg_hit_day, hit_count = monte_carlo_simulation(data["Close"].iloc[-1], days, mu, sigma, target_price, target_range)
+
+#     return data, arima_pred, avg_hit_day, paths, hit_count , arima_target_hit_day
+
+#     # except Exception as e:
+#     #     st.error(f"Error: {e}")
+#     #     return None
 
 # Streamlit UI (updated)
 st.title("📈 Stock Price Prediction (ARIMA + Monte Carlo)")
@@ -104,6 +164,45 @@ These parameters together define the ARIMA model's structure:
 - **p** controls the autoregressive part,
 - **d** controls the differencing to stabilize the data,
 - **q** controls the moving average to correct past errors.
+
+# Stock Price Analysis with Bollinger Bands, Forecast, and RSI
+
+## 1. Stock Price with Bollinger Bands & Forecast  
+- **Actual Price (Blue):** Historical closing prices.  
+- **Predicted Price (Red, Dashed):** ARIMA model forecast.  
+- **Prediction Confidence Interval (Pink Shading):** Uncertainty range for predictions.  
+- **20-day SMA (Orange):** Simple Moving Average for trend indication.  
+- **Bollinger Bands (Gray Shading):** Volatility range around the SMA.  
+- **Target Price (Green, Dashed):** Reference price level.  
+
+## 2. Relative Strength Index (RSI)  
+- **RSI Line (Purple):** Measures stock momentum.  
+- **Overbought Level (Red, Dashed @70):** Possible sell signal.  
+- **Oversold Level (Green, Dashed @30):** Possible buy signal.  
+
+
+### Moving Average Convergence Divergence (MACD)
+
+## MACD Line  
+The MACD Line is simply the difference between the **12-day EMA** and the **26-day EMA**.  
+
+- If **MACD > 0**, the short-term EMA is above the long-term EMA, indicating an **uptrend**.  
+- If **MACD < 0**, the short-term EMA is below the long-term EMA, indicating a **downtrend**.  
+
+## Signal Line  
+The Signal Line is a **9-day EMA** of the MACD Line.  
+It helps smooth out the MACD and generate trading signals:  
+
+- When **MACD crosses above the Signal Line** → **Bullish signal (Buy)**.  
+- When **MACD crosses below the Signal Line** → **Bearish signal (Sell)**.  
+
+## Histogram  
+The Histogram represents the difference between the **MACD Line** and the **Signal Line**.  
+It helps visualize the strength of momentum:  
+
+- **Positive Histogram** (bars above zero) → **Strong uptrend**.  
+- **Negative Histogram** (bars below zero) → **Strong downtrend**.  
+
 """)
 
 if st.button("Predict"):
@@ -169,35 +268,35 @@ if st.button("Predict"):
 
         st.subheader("📉 Stock Price with Bollinger Bands and Forecast")
         # Create subplots
-        # fig, axes = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, axes = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+        # fig, ax = plt.subplots(figsize=(10, 5))
 
         # Top subplot: Price with Bollinger Bands
-        ax.plot(data.index, data['Close'], label='Actual Price', color='blue')
-        ax.plot(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
+        axes[0].plot(data.index, data['Close'], label='Actual Price', color='blue')
+        axes[0].plot(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
                     arima_pred['mean'], label='Predicted Price', color='red', linestyle='dashed')
-        ax.fill_between(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
+        axes[0].fill_between(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
                             arima_pred['mean_ci_lower'], arima_pred['mean_ci_upper'], color='pink', alpha=0.3)
-        ax.plot(data.index, sma_20, label='20-day SMA', color='orange')
-        ax.fill_between(data.index, upper_band, lower_band, color='gray', alpha=0.3, label='Bollinger Bands')
-        ax.axhline(y=target_price, color='green', linestyle='--', label=f'Target Price: ${target_price}')
-        ax.legend()
-        ax.set_title("Stock Price with Bollinger Bands and Forecast")
+        axes[0].plot(data.index, sma_20, label='20-day SMA', color='orange')
+        axes[0].fill_between(data.index, upper_band, lower_band, color='gray', alpha=0.3, label='Bollinger Bands')
+        axes[0].axhline(y=target_price, color='green', linestyle='--', label=f'Target Price: ${target_price}')
+        axes[0].legend()
+        axes[0].set_title("Stock Price with Bollinger Bands and Forecast")
 
-        # # Middle subplot: RSI
-        # axes[1].plot(data.index, rsi, label='RSI', color='purple')
-        # axes[1].axhline(y=70, color='red', linestyle='dashed', label='Overbought (70)')
-        # axes[1].axhline(y=30, color='green', linestyle='dashed', label='Oversold (30)')
-        # axes[1].set_ylim(0, 100)
-        # axes[1].legend()
-        # axes[1].set_title("Relative Strength Index (RSI)")
+        # Middle subplot: RSI
+        axes[1].plot(data.index, rsi, label='RSI', color='purple')
+        axes[1].axhline(y=70, color='red', linestyle='dashed', label='Overbought (70)')
+        axes[1].axhline(y=30, color='green', linestyle='dashed', label='Oversold (30)')
+        axes[1].set_ylim(0, 100)
+        axes[1].legend()
+        axes[1].set_title("Relative Strength Index (RSI)")
 
-        # # Bottom subplot: MACD
-        # axes[2].plot(data.index, macd, label='MACD', color='blue')
-        # axes[2].plot(data.index, signal, label='Signal Line', color='red')
-        # axes[2].bar(data.index, hist, label='Histogram', color='gray', alpha=0.5)
-        # axes[2].legend()
-        # axes[2].set_title("MACD (Moving Average Convergence Divergence)")
+        # Bottom subplot: MACD
+        axes[2].plot(data.index, macd, label='MACD', color='blue')
+        axes[2].plot(data.index, signal, label='Signal Line', color='red')
+        axes[2].bar(data.index, hist, label='Histogram', color='gray', alpha=0.5)
+        axes[2].legend()
+        axes[2].set_title("MACD (Moving Average Convergence Divergence)")
 
         # Adjust layout
         plt.tight_layout()
