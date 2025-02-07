@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
 # Modified Monte Carlo Simulation Function with Range Handling
 def monte_carlo_simulation(last_price, days, mu, sigma, target_price, target_range=0.05, simulations=10000):
     np.random.seed(42)
@@ -140,6 +141,66 @@ if st.button("Predict"):
                         arima_pred["mean_ci_lower"], arima_pred["mean_ci_upper"], color="pink", alpha=0.3)
         ax.axhline(y=target_price, color="green", linestyle="--", label=f"Target Price: ${target_price}")
         ax.legend()
+        st.pyplot(fig)
+
+        # Compute RSI manually
+        def compute_rsi(series, period=14):
+            delta = series.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+            rs = gain / loss
+            return 100 - (100 / (1 + rs))
+
+        rsi = compute_rsi(data['Close'])
+
+        # Compute MACD manually
+        ema_12 = data['Close'].ewm(span=12, adjust=False).mean()
+        ema_26 = data['Close'].ewm(span=26, adjust=False).mean()
+        macd = ema_12 - ema_26
+        signal = macd.ewm(span=9, adjust=False).mean()
+        hist = macd - signal
+
+        # Compute Bollinger Bands manually
+        window = 20  # 20-day SMA
+        sma_20 = data['Close'].rolling(window=window).mean()
+        std_dev = data['Close'].rolling(window=window).std()
+        upper_band = sma_20 + (std_dev * 2)
+        lower_band = sma_20 - (std_dev * 2)
+
+        st.subheader("📉 Stock Price with Bollinger Bands and Forecast")
+        # Create subplots
+        # fig, axes = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        # Top subplot: Price with Bollinger Bands
+        ax.plot(data.index, data['Close'], label='Actual Price', color='blue')
+        ax.plot(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
+                    arima_pred['mean'], label='Predicted Price', color='red', linestyle='dashed')
+        ax.fill_between(pd.date_range(start=data.index[-1], periods=days + 1, freq='D')[1:],
+                            arima_pred['mean_ci_lower'], arima_pred['mean_ci_upper'], color='pink', alpha=0.3)
+        ax.plot(data.index, sma_20, label='20-day SMA', color='orange')
+        ax.fill_between(data.index, upper_band, lower_band, color='gray', alpha=0.3, label='Bollinger Bands')
+        ax.axhline(y=target_price, color='green', linestyle='--', label=f'Target Price: ${target_price}')
+        ax.legend()
+        ax.set_title("Stock Price with Bollinger Bands and Forecast")
+
+        # # Middle subplot: RSI
+        # axes[1].plot(data.index, rsi, label='RSI', color='purple')
+        # axes[1].axhline(y=70, color='red', linestyle='dashed', label='Overbought (70)')
+        # axes[1].axhline(y=30, color='green', linestyle='dashed', label='Oversold (30)')
+        # axes[1].set_ylim(0, 100)
+        # axes[1].legend()
+        # axes[1].set_title("Relative Strength Index (RSI)")
+
+        # # Bottom subplot: MACD
+        # axes[2].plot(data.index, macd, label='MACD', color='blue')
+        # axes[2].plot(data.index, signal, label='Signal Line', color='red')
+        # axes[2].bar(data.index, hist, label='Histogram', color='gray', alpha=0.5)
+        # axes[2].legend()
+        # axes[2].set_title("MACD (Moving Average Convergence Divergence)")
+
+        # Adjust layout
+        plt.tight_layout()
         st.pyplot(fig)
         
         # Plot Monte Carlo Simulations
