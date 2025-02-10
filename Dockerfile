@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8501
 
 # Command to run your app using streamlit
-CMD ["streamlit", "run", "arima_mc_price_range.py"]
+CMD ["streamlit", "run", "auto_arima.py"]
 
 
