@@ -179,12 +179,13 @@ if st.button("Predict"):
         if "not" not in check:
             st.success("🎯 Target price **is likely to be reached** within the given days.")
         else:
-            st.success("⚠️ Target price **may not be reached** within the forecasted period.")
+            st.warning("⚠️ Target price **may not be reached** within the forecasted period.")
         
         if avg_hit_day:
-            st.success(f"🎯 Based on Monte Carlo Simulation, the target price **${target_price}** is expected to be hit in **{avg_hit_day:.2f} days** on average.")
+            # st.success(f"🎯 Based on Monte Carlo Simulation, the target price **${target_price}** is expected to be hit in **{avg_hit_day:.2f} days** on average.")
             if hit_count > 1:
-                st.success(f"💥 The target price range was reached in {hit_count / 10000:.2%} of the simulations.")
+                # st.success(f"💥 The target price range was reached in {hit_count / 10000:.2%} of the simulations.")
+                st.success(f"🎯 Based on Monte Carlo Simulation there is {hit_count / 10000:.2%} probability that {ticker} will hit the target price of **${target_price}**")
         else:
             st.warning("⚠️ Target price may not be reached within the given days.")
         
