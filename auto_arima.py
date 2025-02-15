@@ -121,9 +121,15 @@ def get_stock_forecast(ticker, days, target_price, target_range=0.05):
     
     return data, arima_pred, avg_hit_day, paths, hit_count, arima_target_hit_day
 
+# Change the browser tab title
+st.set_page_config(page_title="Financial Consultant", page_icon="svgviewer-output.png")
+
+st.page_link("https://finwisely.org/stock/AAPL", label="🔙 Back to Main Page")
 
 # Streamlit UI (updated)
 st.title("📈 Stock Price Prediction (ARIMA + Monte Carlo)")
+
+# st.page_link("https://finwisely.org/stock/AAPL", label="🔙 Back to Main Page")
 
 ticker_dict = {
     "Apple Inc (AAPL)": "AAPL",
