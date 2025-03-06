@@ -124,6 +124,8 @@ def get_stock_forecast(ticker, days, target_price, target_range=0.05):
 # Change the browser tab title
 st.set_page_config(page_title="Financial Consultant", page_icon="svgviewer-output.png")
 
+st.warning("⚠️ **Note:** This app is currently in the development phase and currently supports predictions for only Limited stocks.")
+
 st.page_link("https://finwisely.org/stock/AAPL", label="🔙 Back to Main Page")
 
 # Streamlit UI (updated)
