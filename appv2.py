@@ -205,7 +205,9 @@ def get_forecast(ticker, max_months=60):
     pred_df = pd.DataFrame({"Date": future_dates, "Predicted Price": forecast})
     # Ensure the DataFrame has a RangeIndex for integer indexing
     pred_df.reset_index(drop=True, inplace=True)
-    return data, pred_df
+
+ 
+    return data, pred_df 
 
 def check_target_hit(pred_df, target_price, target_range=0.05):
     # Identify the first month when the predicted price is within target range.
@@ -309,3 +311,6 @@ if st.button("Predict"):
             ax.axhline(y=target_price, color="green", linestyle="--", label=f"Target Price: ${target_price}")
         ax.legend()
         st.pyplot(fig)
+
+        
+    
